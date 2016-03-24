@@ -85,6 +85,29 @@ class WaitForSubmissionsGame(Game):
     A game in the WAIT_FOR_SUBMISSIONS state
     """
 
+    def __init__(self, host, game_id, players):
+        super(WaitForSubmissionsGame, self).__init__(host, game_id, players)
+        self._prompts = {}
+
+    def receive_prompt(self, prompt):
+        """
+        :param prompt: a events.Prompt submitted by a player
+        :return: this WaitForSubmissionsGame
+        """
+        player_name = prompt["player"].name
+        if player_name in self.prompts:
+            raise RuntimeError("{} has already submitted a prompt this round!".format(player_name))
+        self._prompts[player_name] = prompt["prompt"]
+
+        if len(self.prompts) == len(self.players):
+            return ChoosingGame(self.host, self.id, self.players)
+        return self
+
+    @property
+    def prompts(self):
+        return dict(self._prompts)
+
+
 class ChoosingGame(Game):
     """
     A game in the CHOOSING state
