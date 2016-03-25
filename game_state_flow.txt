@@ -9,4 +9,4 @@ Lifecycle of a single game:
  All prompts received               | WAIT_FOR_SUBMISSIONS -> CHOOSING   | NEW_PROMPTS (to host)
  Host chooses prompt                | CHOOSING -> WAIT_FOR_SUBMISSIONS   | CHOOSE_PROMPT(host->server), STORY_UPDATE (to players)
  (N-1)th prompt chosen              | CHOOSING -> WAIT_FOR_SUBMISSIONS   | FINAL_ROUND (to players)
- Nth round completed                | CHOOSING -> GAME_COMPLETE          | DONE (to players)
+ Nth round completed                | CHOOSING -> GAME_COMPLETE          | DONE (to all)

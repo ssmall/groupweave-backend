@@ -5,7 +5,7 @@ from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
 
 from cli import SERVER_PORT
 from cli.client import CommandLineGroupweaveClientProtocol
-from events import PlayerJoined, GameStarted, Prompt, StoryUpdate
+from events import PlayerJoined, GameStarted, Prompt, StoryUpdate, Done
 
 
 class Player(CommandLineGroupweaveClientProtocol):
@@ -24,14 +24,23 @@ class Player(CommandLineGroupweaveClientProtocol):
             self.story = event["story"]
             os.system('clear')
             print "The host has chosen!"
+            if event["is_final_round"]:
+                print "This is the final round! Make it count!"
             self.submitPrompt()
-
+        elif isinstance(event, Done):
+            self.story = event["story"]
+            os.system('clear')
+            print "That's all, folks! The winner is: {}".format(event["winner"])
+            print "The final story is:\n{}".format(self.story)
+            self.transport.loseConnection()
+            reactor.stop()
 
     def submitPrompt(self):
         print "The story so far:\n\n{}\n\n".format(self.story)
         prompt = raw_input("Please type a sentence or phrase to continue the story:\n")
         self.send(Prompt(prompt, self.name))
         print "Prompt submitted! Please wait while other players submit theirs"
+
 
 if __name__ == "__main__":
     point = TCP4ClientEndpoint(reactor, "localhost", SERVER_PORT)

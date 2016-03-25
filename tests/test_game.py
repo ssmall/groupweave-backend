@@ -106,7 +106,9 @@ class TestGame(TestCase):
         updated_story = "{} {}".format(story_so_far, chosen_prompt)
         result_game = game.choose_prompt(ChoosePrompt(chosen_prompt))
 
-        self.first_player.notify.assert_called_with(Done(winner="Everybody!", story=updated_story))
+        expected_event = Done(winner="Everybody!", story=updated_story)
+        self.first_player.notify.assert_called_with(expected_event)
+        self.host.notify.assert_called_with(expected_event)
         self.assertIs(type(result_game), CompleteGame)
 
     def create_player(self, name):

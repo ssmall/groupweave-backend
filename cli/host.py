@@ -5,7 +5,7 @@ from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
 
 from cli import SERVER_PORT
 from cli.client import CommandLineGroupweaveClientProtocol
-from events import PlayerJoined, StartGame, NewPrompts, ChoosePrompt
+from events import PlayerJoined, StartGame, NewPrompts, ChoosePrompt, Done
 
 
 class Host(CommandLineGroupweaveClientProtocol):
@@ -31,6 +31,12 @@ class Host(CommandLineGroupweaveClientProtocol):
             self.story = "{} {}".format(self.story, choice) if self.story else choice
             os.system('clear')
             print "The Story So Far:\n{}".format(self.story)
+        if isinstance(event, Done):
+            self.story = event['story']
+            print "Game over! The winner is: {}".format(event['winner'])
+            print "The final story is:\n{}".format(self.story)
+            self.transport.loseConnection()
+            reactor.stop()
 
 
 

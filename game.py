@@ -139,7 +139,9 @@ class ChoosingGame(Game):
         updated_story = "{} {}".format(self.story, choice['choice'])
 
         if self.round_number == TOTAL_ROUNDS:
-            self.notifyPlayers(Done(winner="Everybody!", story=updated_story))
+            doneEvent = Done(winner="Everybody!", story=updated_story)
+            self.notifyPlayers(doneEvent)
+            self.host.notify(doneEvent)
             return CompleteGame(self.host, self.id, self.players, updated_story, TOTAL_ROUNDS)
         else:
             is_final_round = self.round_number == (TOTAL_ROUNDS - 1)
