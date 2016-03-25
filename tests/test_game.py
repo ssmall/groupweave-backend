@@ -28,6 +28,11 @@ class TestGame(TestCase):
         self.assertIn(self.player, game.players)
         self.host.notify.assert_called_with(PlayerJoined(self.player.name))
 
+        second_player_name = "Zedd"
+        game.register(self.create_player(second_player_name))
+        self.host.notify.assert_called_with(PlayerJoined(second_player_name))
+        self.player.notify.assert_called_with(PlayerJoined(second_player_name))
+
     def test_cant_add_player_twice(self):
         game = self.create_game_with_player(self.player)
 
@@ -38,7 +43,7 @@ class TestGame(TestCase):
 
         game.start()
 
-        self.player.notify.assert_called_with(GameStarted(2))
+        self.player.notify.assert_called_with(GameStarted())
 
     def test_player_submits_prompt(self):
         game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.player])

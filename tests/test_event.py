@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from events import Event, PlayerJoined
+from events import Event, from_json, PlayerJoined
 
 
 class TestEvent(TestCase):
@@ -18,3 +18,14 @@ class TestEvent(TestCase):
         event2 = Event(event_type, a=1, b=2)
 
         self.assertEqual(event1, event2)
+
+    def test_serialization(self):
+        event_type = "MyEvent"
+
+        event = Event(event_type, a=1, b=2)
+
+        self.assertEqual(from_json(event.toJson()), event)
+
+        event_subclass = PlayerJoined("Jeb")
+
+        self.assertEqual(from_json(event_subclass.toJson()), event_subclass)

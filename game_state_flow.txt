@@ -3,7 +3,7 @@ Lifecycle of a single game:
           Real-world event          |           State transition         |         Notifications
 ------------------------------------|------------------------------------|-------------------------------
  Host creates new game              | () -> CREATED                      | N/A
- Player joins game                  | N/A                                | PLAYER_JOINED (to host)
+ Player joins game                  | N/A                                | PLAYER_JOINED (to all)
  Host starts game                   | CREATED -> WAIT_FOR_SUBMISSIONS    | GAME_STARTED (to players)
  Player submits a prompt            | N/A                                | PROMPT (to host)
  All prompts received               | WAIT_FOR_SUBMISSIONS -> CHOOSING   | N/A

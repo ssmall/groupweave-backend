@@ -1,6 +1,8 @@
 """
 Module for modeling a game of Groupweave
 """
+from abc import ABCMeta, abstractmethod, abstractproperty
+
 from enum import Enum
 
 from events import *
@@ -60,16 +62,20 @@ class CreatedGame(Game):
     A game in the CREATED state
     """
 
-    def register(self, player):
+    def register(self, playerToAdd):
         """
         :return: a CreatedGame with an updated list of players
 
         :raises: RuntimeError if the player has already joined the game
         """
-        if player in self.players:
-            raise RuntimeError("{} has already joined the game!".format(player))
-        self._players.append(player)
-        self.host.notify(PlayerJoined(player.name))
+        if playerToAdd in self.players:
+            raise RuntimeError("{} has already joined the game!".format(playerToAdd))
+        self._players.append(playerToAdd)
+        event = PlayerJoined(playerToAdd.name)
+        for playerToNotify in self.players + (self.host,):
+            if playerToNotify is playerToAdd:
+                continue
+            playerToNotify.notify(event)
         return self
 
     def start(self):
@@ -77,7 +83,7 @@ class CreatedGame(Game):
         :return: a WaitForSubmissionsGame
         """
         for player in self.players:
-            player.notify(GameStarted(len(self.players) + 1))
+            player.notify(GameStarted())
         return WaitForSubmissionsGame(self.host, self.id, self.players)
 
 class WaitForSubmissionsGame(Game):
@@ -124,12 +130,16 @@ class Player(object):
     A single player in a game of Groupweave
     """
 
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
     def join(self, game):
         pass
 
+    @abstractmethod
     def notify(self, event):
         pass
 
-    @property
+    @abstractproperty
     def name(self):
         pass
