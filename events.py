@@ -4,7 +4,7 @@ between the host and the players
 """
 
 import json
-import sys
+
 
 class Event(object):
     """
@@ -43,6 +43,14 @@ class PlayerJoined(Event):
     def __init__(self, player_name):
         super(PlayerJoined, self).__init__(self.__class__.__name__, player_name=player_name)
 
+class StartGame(Event):
+    """
+    Event that is triggered when the host requests to start the game
+    """
+
+    def __init__(self):
+        super(StartGame, self).__init__(self.__class__.__name__)
+
 
 class GameStarted(Event):
     """
@@ -62,6 +70,23 @@ class Prompt(Event):
         super(Prompt, self).__init__(self.__class__.__name__, prompt=prompt, player=player)
 
 
+class NewPrompts(Event):
+    """
+    Event that aggregates all new prompts for a round
+    """
+
+    def __init__(self, prompts):
+        super(NewPrompts, self).__init__(self.__class__.__name__, prompts=prompts)
+
+class ChoosePrompt(Event):
+    """
+    Event that indicates that the host has chosen a new prompt
+    """
+
+    def __init__(self, choice):
+        super(ChoosePrompt, self).__init__(self.__class__.__name__, choice=choice)
+
+
 class StoryUpdate(Event):
     """
     Event that is triggered when the host chooses a prompt to continue the story
@@ -79,7 +104,9 @@ class Done(Event):
     def __init__(self, winner, story):
         super(Done, self).__init__(self.__class__.__name__, winner=winner, story=story)
 
-_EVENT_SUBCLASSES = {name: cls for (name, cls) in [(cls.__name__,cls) for cls in Event.__subclasses__()]}
+
+_EVENT_SUBCLASSES = {name: cls for (name, cls) in [(cls.__name__, cls) for cls in Event.__subclasses__()]}
+
 
 def from_json(str):
     """

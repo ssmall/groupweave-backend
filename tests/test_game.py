@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from events import PlayerJoined, GameStarted, Prompt
+from events import PlayerJoined, GameStarted, Prompt, NewPrompts
 from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame
 from mock import Mock
 
@@ -22,7 +22,6 @@ class TestGame(TestCase):
         self.assertNotIn(self.host, game.players)
 
     def test_player_joins_game(self):
-
         game = self.create_game_with_player(self.player)
 
         self.assertIn(self.player, game.players)
@@ -60,18 +59,21 @@ class TestGame(TestCase):
 
         self.assertRaises(RuntimeError, game.receive_prompt, Prompt("Second prompt", self.player))
 
-
     def test_all_prompts_received(self):
         second_player = self.create_player("Zedd")
         game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.player, second_player])
 
-        game = game.receive_prompt(Prompt("First player prompt", self.player))
+        first_player_prompt = "First player prompt"
+        game = game.receive_prompt(Prompt(first_player_prompt, self.player))
 
         self.assertIs(type(game), WaitForSubmissionsGame)
+        self.host.notify.assert_not_called()
 
-        resultGame = game.receive_prompt(Prompt("Second player prompt", second_player))
+        second_player_prompt = "Second player prompt"
+        resultGame = game.receive_prompt(Prompt(second_player_prompt, second_player))
 
         self.assertIs(type(resultGame), ChoosingGame)
+        self.host.notify.assert_called_with(NewPrompts(prompts=[first_player_prompt, second_player_prompt]))
 
     def create_player(self, name):
         new_player = Mock(spec=Player)

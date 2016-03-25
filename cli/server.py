@@ -4,41 +4,83 @@ to be used for local testing
 """
 import sys
 
-import time
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
 
-from cli import SERVER_PORT
-from events import Event, PlayerJoined
 import game
+from cli import SERVER_PORT
+from events import Event, Prompt, from_json, StartGame, ChoosePrompt
 
 
-class Host(game.Player):
-    def __init__(self, num_players):
-        self.total_players = num_players
-        self.connected_players = 0
-        self.game = None
+class GameReference(object):
+    """
+    A necessary evil given that game state
+    transitions happen in multiple places
+    """
 
-    def name(self):
-        return "Host"
+    def __init__(self, initialGame):
+        self.game = initialGame
 
-    def notify(self, event):
-        if isinstance(event, PlayerJoined):
-            print "{} joined the game!".format(event["player_name"])
-            self.connected_players += 1
-            if self.connected_players == self.total_players:
-                self.game.start()
+    def __getattr__(self, item):
+        game_attr = getattr(self.game, item)
+        if callable(game_attr):
+            return MethodReference(self, game_attr)
+        return game_attr
 
-    def join(self, game):
+
+class MethodReference(object):
+    def __init__(self, gameReference, originalMethod):
+        self.gameReference = gameReference
+        self.originalMethod = originalMethod
+
+    def __call__(self, *args, **kwargs):
+        return_val = self.originalMethod(*args, **kwargs)
+        if issubclass(return_val.__class__, game.Game):
+            self.gameReference.game = return_val
+        return return_val
+
+
+class CommandLineGroupweaveBackend(LineReceiver):
+    """
+    Run a game of Groupweave from the command line
+    as a TCP server
+    """
+
+    def __init__(self, factory, game):
         self.game = game
+        self.factory = factory
+        self.player = None
+
+    def attachPlayer(self, player):
+        self.player = player
+
+    def connectionMade(self):
+        self.player.notify(Event("YourNameIs", name=self.player.name))
+        try:
+            self.player.join(self.game)
+        except RuntimeError:
+            print >> sys.stderr, "Rejecting new connection because game has already started"
+            self.transport.loseConnection()
+            return
+
+    def dataReceived(self, data):
+        print "[raw data] {}".format(data)
+        LineReceiver.dataReceived(self, data)
+
+    def lineReceived(self, line):
+        event = from_json(line)
+        self.factory.handleEvent(event)
+
+    def connectionLost(self, reason):
+        self.factory.removeClient(self)
 
 
 class Player(game.Player):
     def __init__(self, name, protocol):
-        self._protocol = protocol
         self._name = name
+        self._protocol = protocol
 
     @property
     def name(self):
@@ -51,31 +93,9 @@ class Player(game.Player):
         game.register(self)
 
 
-class CommandLineGroupweaveBackend(LineReceiver):
-    """
-    Run a game of Groupweave from the command line
-    as a TCP server
-    """
-
-    def __init__(self, game):
-        self.game = game
-        self.player = None
-
-    def connectionMade(self):
-        self.player = Player("Player {}".format(len(self.game.players)), self)
-        self.player.notify(Event("YourNameIs", name=self.player.name))
-        try:
-            self.player.join(self.game)
-        except RuntimeError:
-            print >> sys.stderr, "Rejecting new connection because game has already started"
-            self.transport.loseConnection()
-            return
-
-    def lineReceived(self, line):
+class Host(Player):
+    def join(self, game):
         pass
-
-    def connectionLost(self, reason):
-        self.factory.removeClient(self)
 
 
 class DummyIdFactory(object):
@@ -84,10 +104,8 @@ class DummyIdFactory(object):
 
 
 class CommandLineGroupweaveFactory(Factory):
-    def __init__(self, num_players):
-        self.host = Host(num_players)
-        self.game = game.GameFactory(DummyIdFactory()).new_game(self.host)
-        self.host.join(self.game)
+    def __init__(self):
+        self.game = None
         self.clients = []
 
     def startFactory(self):
@@ -102,9 +120,28 @@ class CommandLineGroupweaveFactory(Factory):
         Factory.stopFactory(self)
 
     def buildProtocol(self, addr):
-        protocol = CommandLineGroupweaveBackend(self.game)
+        protocol = CommandLineGroupweaveBackend(self, self.game)
+        if self.numClients == 0:
+            print "Host connected!"
+            host = Host("Host", protocol)
+            protocol.attachPlayer(host)
+            self.game = GameReference(game.GameFactory(DummyIdFactory()).new_game(host))
+        else:
+            print "Player connected!"
+            player_name = "Player {}".format(len(self.game.players))
+            player = Player(player_name, protocol)
+            protocol.attachPlayer(player)
         self.clients.append(protocol)
         return protocol
+
+    def handleEvent(self, event):
+        if isinstance(event, StartGame):
+            self.game.start()
+        elif isinstance(event, Prompt):
+            self.game.receive_prompt(event)
+        #elif isinstance(event, ChoosePrompt):
+        else:
+            print "Unhandled event received: {}".format(event)
 
     @property
     def numClients(self):
@@ -113,13 +150,8 @@ class CommandLineGroupweaveFactory(Factory):
     def removeClient(self, client):
         self.clients.remove(client)
 
-    def sendToPlayers(self, fromClient, event):
-        for client in self.clients:
-            if client is not fromClient:
-                client.sendMessage(event.toJson())
-
 
 if __name__ == "__main__":
     endpoint = TCP4ServerEndpoint(reactor, SERVER_PORT)
-    endpoint.listen(CommandLineGroupweaveFactory(int(raw_input("How many players? "))))
+    endpoint.listen(CommandLineGroupweaveFactory())
     reactor.run()

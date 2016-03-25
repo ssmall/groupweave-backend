@@ -100,12 +100,13 @@ class WaitForSubmissionsGame(Game):
         :param prompt: a events.Prompt submitted by a player
         :return: this WaitForSubmissionsGame
         """
-        player_name = prompt["player"].name
+        player_name = prompt["player"]
         if player_name in self.prompts:
             raise RuntimeError("{} has already submitted a prompt this round!".format(player_name))
         self._prompts[player_name] = prompt["prompt"]
 
         if len(self.prompts) == len(self.players):
+            self.host.notify(NewPrompts(prompts=self.prompts.values()))
             return ChoosingGame(self.host, self.id, self.players)
         return self
 
@@ -138,6 +139,11 @@ class Player(object):
 
     @abstractmethod
     def notify(self, event):
+        """
+        Notify the player of a game event.
+        :param event: the game Event that has occurred
+        :return: anything returned by this method will be ignored
+        """
         pass
 
     @abstractproperty
