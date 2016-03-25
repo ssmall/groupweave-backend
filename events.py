@@ -43,6 +43,7 @@ class PlayerJoined(Event):
     def __init__(self, player_name):
         super(PlayerJoined, self).__init__(self.__class__.__name__, player_name=player_name)
 
+
 class StartGame(Event):
     """
     Event that is triggered when the host requests to start the game
@@ -77,6 +78,7 @@ class NewPrompts(Event):
 
     def __init__(self, prompts):
         super(NewPrompts, self).__init__(self.__class__.__name__, prompts=prompts)
+
 
 class ChoosePrompt(Event):
     """

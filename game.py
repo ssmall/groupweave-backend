@@ -39,10 +39,11 @@ class Game(object):
     calling the method.
     """
 
-    def __init__(self, host, game_id, players):
+    def __init__(self, host, game_id, players, story=""):
         self._players = players
         self._host = host
         self._id = game_id
+        self._story = story
 
     @property
     def host(self):
@@ -55,6 +56,10 @@ class Game(object):
     @property
     def players(self):
         return tuple(self._players)
+
+    @property
+    def story(self):
+        return self._story
 
 
 class CreatedGame(Game):
@@ -84,15 +89,15 @@ class CreatedGame(Game):
         """
         for player in self.players:
             player.notify(GameStarted())
-        return WaitForSubmissionsGame(self.host, self.id, self.players)
+        return WaitForSubmissionsGame(self.host, self.id, self.players, "")
 
 class WaitForSubmissionsGame(Game):
     """
     A game in the WAIT_FOR_SUBMISSIONS state
     """
 
-    def __init__(self, host, game_id, players):
-        super(WaitForSubmissionsGame, self).__init__(host, game_id, players)
+    def __init__(self, host, game_id, players, story):
+        super(WaitForSubmissionsGame, self).__init__(host, game_id, players, story)
         self._prompts = {}
 
     def receive_prompt(self, prompt):
@@ -119,6 +124,13 @@ class ChoosingGame(Game):
     """
     A game in the CHOOSING state
     """
+
+    def choose_prompt(self, choice):
+        updated_story = "{} {}".format(self.story, choice)
+        for player in self.players:
+            player.notify(StoryUpdate(updated_story))
+        return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story)
+
 
 class CompleteGame(Game):
     """
