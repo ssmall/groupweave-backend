@@ -1,3 +1,5 @@
+import os
+
 from twisted.internet import reactor
 from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
 
@@ -20,13 +22,15 @@ class Host(CommandLineGroupweaveClientProtocol):
                 print "Starting game!"
                 self.send(StartGame())
         if isinstance(event, NewPrompts):
-            choices = {i: prompt for i, prompt in enumerate(event["prompts"])}
+            choices = {(i+1): prompt for i, prompt in enumerate(event["prompts"])}
             print "Prompts received (choose one):"
             for i, prompt in choices.iteritems():
                 print "{}. {}".format(i, prompt)
             choice = choices[int(raw_input("> "))]
             self.send(ChoosePrompt(choice))
-
+            self.story = "{} {}".format(self.story, choice) if self.story else choice
+            os.system('clear')
+            print "The Story So Far:\n{}".format(self.story)
 
 
 

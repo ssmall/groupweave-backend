@@ -15,7 +15,7 @@ class CommandLineGroupweaveClientProtocol(LineReceiver, object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.story = ""
+        self.story = None
         self.name = None
 
     def lineReceived(self, line):

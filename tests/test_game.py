@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from events import PlayerJoined, GameStarted, Prompt, NewPrompts, StoryUpdate
+from events import PlayerJoined, GameStarted, Prompt, NewPrompts, StoryUpdate, ChoosePrompt
 from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame
 from mock import Mock
 
@@ -81,7 +81,7 @@ class TestGame(TestCase):
 
         choice = "This is the next part of the story."
         updated_story = "{} {}".format(story_so_far, choice)
-        result_game = game.choose_prompt(choice)
+        result_game = game.choose_prompt(ChoosePrompt(choice))
 
         self.first_player.notify.assert_called_with(StoryUpdate(updated_story))
         self.second_player.notify.assert_called_with(StoryUpdate(updated_story))

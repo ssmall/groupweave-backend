@@ -112,7 +112,7 @@ class WaitForSubmissionsGame(Game):
 
         if len(self.prompts) == len(self.players):
             self.host.notify(NewPrompts(prompts=self.prompts.values()))
-            return ChoosingGame(self.host, self.id, self.players)
+            return ChoosingGame(self.host, self.id, self.players, self.story)
         return self
 
     @property
@@ -126,7 +126,7 @@ class ChoosingGame(Game):
     """
 
     def choose_prompt(self, choice):
-        updated_story = "{} {}".format(self.story, choice)
+        updated_story = "{} {}".format(self.story, choice['choice'])
         for player in self.players:
             player.notify(StoryUpdate(updated_story))
         return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story)

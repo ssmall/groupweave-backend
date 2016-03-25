@@ -139,7 +139,8 @@ class CommandLineGroupweaveFactory(Factory):
             self.game.start()
         elif isinstance(event, Prompt):
             self.game.receive_prompt(event)
-        #elif isinstance(event, ChoosePrompt):
+        elif isinstance(event, ChoosePrompt):
+            self.game.choose_prompt(event)
         else:
             print "Unhandled event received: {}".format(event)
 
