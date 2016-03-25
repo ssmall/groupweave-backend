@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from events import PlayerJoined, GameStarted, Prompt, NewPrompts, StoryUpdate, ChoosePrompt
-from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame
+from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame, TOTAL_ROUNDS
 from mock import Mock
 
 MOCK_GAME_ID = "ASDF"
@@ -87,6 +87,16 @@ class TestGame(TestCase):
         self.second_player.notify.assert_called_with(StoryUpdate(updated_story))
         self.assertIs(type(result_game), WaitForSubmissionsGame)
         self.assertEqual(result_game.story, updated_story)
+
+    def test_final_round_notifications(self):
+        story_so_far = "The story so far."
+        game = ChoosingGame(self.host, MOCK_GAME_ID, [self.first_player], story_so_far, TOTAL_ROUNDS - 1)
+
+        chosen_prompt = "Chosen prompt"
+        updated_story = "{} {}".format(story_so_far, chosen_prompt)
+        game.choose_prompt(ChoosePrompt(chosen_prompt))
+
+        self.first_player.notify.assert_called_with(StoryUpdate(updated_story, is_final_round=True))
 
     def create_player(self, name):
         new_player = Mock(spec=Player)

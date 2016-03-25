@@ -9,6 +9,8 @@ from events import *
 
 GameStates = Enum('CREATED', 'WAIT_FOR_SUBMISSIONS', 'CHOOSING', 'GAME_COMPLETE')
 
+TOTAL_ROUNDS = 10
+
 class GameFactory(object):
     """
     Factory for creating a new game
@@ -39,7 +41,8 @@ class Game(object):
     calling the method.
     """
 
-    def __init__(self, host, game_id, players, story=""):
+    def __init__(self, host, game_id, players, story="", current_round=1):
+        self._current_round = current_round
         self._players = players
         self._host = host
         self._id = game_id
@@ -60,6 +63,10 @@ class Game(object):
     @property
     def story(self):
         return self._story
+
+    @property
+    def round_number(self):
+        return self._current_round
 
 
 class CreatedGame(Game):
@@ -89,15 +96,15 @@ class CreatedGame(Game):
         """
         for player in self.players:
             player.notify(GameStarted())
-        return WaitForSubmissionsGame(self.host, self.id, self.players, "")
+        return WaitForSubmissionsGame(self.host, self.id, self.players, "", 1)
 
 class WaitForSubmissionsGame(Game):
     """
     A game in the WAIT_FOR_SUBMISSIONS state
     """
 
-    def __init__(self, host, game_id, players, story):
-        super(WaitForSubmissionsGame, self).__init__(host, game_id, players, story)
+    def __init__(self, host, game_id, players, story, round_number):
+        super(WaitForSubmissionsGame, self).__init__(host, game_id, players, story, round_number)
         self._prompts = {}
 
     def receive_prompt(self, prompt):
@@ -127,9 +134,10 @@ class ChoosingGame(Game):
 
     def choose_prompt(self, choice):
         updated_story = "{} {}".format(self.story, choice['choice'])
+        is_final_round = self.round_number == (TOTAL_ROUNDS - 1)
         for player in self.players:
-            player.notify(StoryUpdate(updated_story))
-        return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story)
+            player.notify(StoryUpdate(updated_story, is_final_round=is_final_round))
+        return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story, self.round_number + 1)
 
 
 class CompleteGame(Game):
