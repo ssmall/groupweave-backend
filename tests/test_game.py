@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from events import PlayerJoined, GameStarted, Prompt, NewPrompts, StoryUpdate, ChoosePrompt
-from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame, TOTAL_ROUNDS
+from events import PlayerJoined, GameStarted, Prompt, NewPrompts, StoryUpdate, ChoosePrompt, Done
+from game import Player, GameFactory, WaitForSubmissionsGame, ChoosingGame, TOTAL_ROUNDS, CompleteGame
 from mock import Mock
 
 MOCK_GAME_ID = "ASDF"
@@ -46,7 +46,7 @@ class TestGame(TestCase):
         self.first_player.notify.assert_called_with(GameStarted())
 
     def test_player_submits_prompt(self):
-        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player], "")
+        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player], "", 1)
 
         prompt = "This is a prompt"
         game.receive_prompt(Prompt(prompt, self.first_player.name))
@@ -54,14 +54,14 @@ class TestGame(TestCase):
         self.assertDictContainsSubset({self.first_player.name: prompt}, game.prompts)
 
     def test_cannot_submit_prompt_twice(self):
-        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player], "")
+        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player], "", 1)
 
         game.receive_prompt(Prompt("First prompt", self.first_player))
 
         self.assertRaises(RuntimeError, game.receive_prompt, Prompt("Second prompt", self.first_player))
 
     def test_all_prompts_received(self):
-        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player, self.second_player], "")
+        game = WaitForSubmissionsGame(self.host, MOCK_GAME_ID, [self.first_player, self.second_player], "", 1)
 
         first_player_prompt = "First player prompt"
         game = game.receive_prompt(Prompt(first_player_prompt, self.first_player))
@@ -97,6 +97,17 @@ class TestGame(TestCase):
         game.choose_prompt(ChoosePrompt(chosen_prompt))
 
         self.first_player.notify.assert_called_with(StoryUpdate(updated_story, is_final_round=True))
+
+    def test_end_of_game(self):
+        story_so_far = "Story so far"
+        game = ChoosingGame(self.host, MOCK_GAME_ID, [self.first_player], story_so_far, TOTAL_ROUNDS)
+
+        chosen_prompt = "Chosen prompt"
+        updated_story = "{} {}".format(story_so_far, chosen_prompt)
+        result_game = game.choose_prompt(ChoosePrompt(chosen_prompt))
+
+        self.first_player.notify.assert_called_with(Done(winner="Everybody!", story=updated_story))
+        self.assertIs(type(result_game), CompleteGame)
 
     def create_player(self, name):
         new_player = Mock(spec=Player)

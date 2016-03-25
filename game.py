@@ -68,6 +68,10 @@ class Game(object):
     def round_number(self):
         return self._current_round
 
+    def notifyPlayers(self, notification):
+        for player in self.players:
+            player.notify(notification)
+
 
 class CreatedGame(Game):
     """
@@ -94,8 +98,7 @@ class CreatedGame(Game):
         """
         :return: a WaitForSubmissionsGame
         """
-        for player in self.players:
-            player.notify(GameStarted())
+        self.notifyPlayers(GameStarted())
         return WaitForSubmissionsGame(self.host, self.id, self.players, "", 1)
 
 class WaitForSubmissionsGame(Game):
@@ -119,7 +122,7 @@ class WaitForSubmissionsGame(Game):
 
         if len(self.prompts) == len(self.players):
             self.host.notify(NewPrompts(prompts=self.prompts.values()))
-            return ChoosingGame(self.host, self.id, self.players, self.story)
+            return ChoosingGame(self.host, self.id, self.players, self.story, self.round_number)
         return self
 
     @property
@@ -134,10 +137,15 @@ class ChoosingGame(Game):
 
     def choose_prompt(self, choice):
         updated_story = "{} {}".format(self.story, choice['choice'])
-        is_final_round = self.round_number == (TOTAL_ROUNDS - 1)
-        for player in self.players:
-            player.notify(StoryUpdate(updated_story, is_final_round=is_final_round))
-        return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story, self.round_number + 1)
+
+        if self.round_number == TOTAL_ROUNDS:
+            self.notifyPlayers(Done(winner="Everybody!", story=updated_story))
+            return CompleteGame(self.host, self.id, self.players, updated_story, TOTAL_ROUNDS)
+        else:
+            is_final_round = self.round_number == (TOTAL_ROUNDS - 1)
+            notification = StoryUpdate(updated_story, is_final_round=is_final_round)
+            self.notifyPlayers(notification)
+            return WaitForSubmissionsGame(self.host, self.id, self.players, updated_story, self.round_number + 1)
 
 
 class CompleteGame(Game):
