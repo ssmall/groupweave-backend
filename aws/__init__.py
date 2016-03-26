@@ -25,7 +25,7 @@ class Player(BasePlayer):
         pass
 
     def join(self, game):
-        pass
+        game.register(self)
 
 
 class Host(BasePlayer):
@@ -61,3 +61,13 @@ class GameWrapper(object):
 
     def save(self):
         dynamo.save_game(self.game.game)
+
+
+    def __enter__(self):
+        return self.game
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            pass # Don't save the game state if an exception occurred
+        self.save()
+
