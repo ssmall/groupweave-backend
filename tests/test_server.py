@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from mock.mock import Mock
 
-from cli.server import GameReference
+from gameutil import GameReference
 from game import Game
 
 

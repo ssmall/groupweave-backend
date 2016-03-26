@@ -3,11 +3,7 @@ Module for modeling a game of Groupweave
 """
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from enum import Enum
-
 from events import *
-
-GameStates = Enum('CREATED', 'WAIT_FOR_SUBMISSIONS', 'CHOOSING', 'GAME_COMPLETE')
 
 TOTAL_ROUNDS = 10
 
