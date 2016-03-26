@@ -12,16 +12,16 @@ from gameutil import GameReference
 
 class BasePlayer(game.Player):
 
-    def __init__(self, token):
+    def __init__(self, name, token):
         super(BasePlayer, self).__init__()
+        self._name = name
         self.token = token
 
+    def name(self):
+        return self._name
 
 class Player(BasePlayer):
     def notify(self, event):
-        pass
-
-    def name(self):
         pass
 
     def join(self, game):

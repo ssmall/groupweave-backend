@@ -10,13 +10,16 @@ def create_game(event, context):
     """
     Called when somebody wants to create a new game.
 
+    The event is expected to contain the following parameter:
+    - name: the name of the player hosting the game
+
     Takes no parameters, and returns the following:
     - gameId: the unique four-letter ID of the new game
     - hostToken: token that identifies the caller as the host of the game
                   this token must be included in subsequent 'host' operations
                   to be considered authorized
     """
-    host = Host(uuid.uuid4())
+    host = Host(event["name"], uuid.uuid4())
     game_wrapper = GameWrapperFactory().new_game(host)
     return json.dumps({'gameId': game_wrapper.game.id,
                        'hostToken': game_wrapper.game.host.token.hex})
