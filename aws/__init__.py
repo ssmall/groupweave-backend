@@ -4,7 +4,7 @@ game classes
 """
 
 import game
-from aws import dynamo
+from aws import dynamo, sqs
 from aws.dynamo import GameIdGenerator
 from game import CreatedGame, GameFactory
 from gameutil import GameReference
@@ -17,6 +17,7 @@ class BasePlayer(game.Player):
         self._name = name
         self.token = token
 
+    @property
     def name(self):
         return self._name
 
@@ -29,14 +30,16 @@ class Player(BasePlayer):
 
 
 class Host(BasePlayer):
-    def notify(self, event):
-        pass
 
-    def name(self):
-        pass
+    def __init__(self, name, token):
+        super(Host, self).__init__(name, token)
+        self.queueUrl = None
+
+    def notify(self, event):
+        sqs.send_message(self.queueUrl, event)
 
     def join(self, game):
-        pass
+        self.queueUrl = sqs.create_queue(game.id, self.token)
 
 
 class GameWrapperFactory(object):
