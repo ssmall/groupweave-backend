@@ -25,7 +25,8 @@ def create_game(event, context):
     with GameWrapperFactory().new_game(host) as game:
         host.join(game)
         return json.dumps({'gameId': game.id,
-                           'hostToken': game.host.token.hex})
+                           'hostToken': game.host.token.hex,
+                           'queueUrl': game.host.queueUrl})
 
 
 def join_game(event, context):
