@@ -6,6 +6,18 @@ import uuid
 
 from aws import GameWrapperFactory, Host, Player
 
+class ErrorHandler(object):
+    """
+    Context manager for wrapping errors in a way
+    that provides consistent error messages
+    """
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            raise RuntimeError("Server Error: " + str(exc_val))
 
 def create_game(event, context):
     """
@@ -21,12 +33,13 @@ def create_game(event, context):
                  to identify the requester as the host
     - queueUrl: the URL of the SQS queue for host notifications
     """
-    host = Host(event["name"], uuid.uuid4())
-    with GameWrapperFactory().new_game(host) as game:
-        host.join(game)
-        return json.dumps({'gameId': game.id,
-                           'hostToken': game.host.token.hex,
-                           'queueUrl': game.host.queueUrl})
+    with ErrorHandler():
+        host = Host(event["name"], uuid.uuid4())
+        with GameWrapperFactory().new_game(host) as game:
+            host.join(game)
+            return json.dumps({'gameId': game.id,
+                               'hostToken': game.host.token.hex,
+                               'queueUrl': game.host.queueUrl})
 
 
 def join_game(event, context):
@@ -42,10 +55,11 @@ def join_game(event, context):
                    this token must be included in subsequent operations
                    in order to identify the requester as this player
     """
-    with GameWrapperFactory().load_game(event["gameId"]) as game:
-        player = Player(event["name"], uuid.uuid4())
-        player.join(game)
-        return json.dumps({'playerToken': player.token.hex})
+    with ErrorHandler():
+        with GameWrapperFactory().load_game(event["gameId"]) as game:
+            player = Player(event["name"], uuid.uuid4())
+            player.join(game)
+            return json.dumps({'playerToken': player.token.hex})
 
 
 def start_game(event, context):
@@ -59,11 +73,12 @@ def start_game(event, context):
     Returns nothing if succesful, or an error if the game
     could not be started for some reason.
     """
-    with GameWrapperFactory().load_game(event["gameId"]) as game:
-        host = game.host
-        if event["token"] != host.token.hex:
-            raise RuntimeError("Token mismatch; you are not authorized to perform this operation")
-        game.start()
+    with ErrorHandler():
+        with GameWrapperFactory().load_game(event["gameId"]) as game:
+            host = game.host
+            if event["token"] != host.token.hex:
+                raise RuntimeError("Token mismatch; you are not authorized to perform this operation")
+            game.start()
 
 
 def submit_prompt():
