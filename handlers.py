@@ -69,12 +69,14 @@ def join_game(event, context):
     - playerToken: token that identifies the caller as a player in the game
                    this token must be included in subsequent operations
                    in order to identify the requester as this player
+    - queueUrl: the URL of the SQS queue for player notifications
     """
     with ErrorHandler():
         with GameWrapperFactory.load_game(event["gameId"]) as game:
             player = Player(event["name"], uuid.uuid4())
             player.join(game)
-            return json.dumps({'playerToken': player.token.hex})
+            return json.dumps({'playerToken': player.token.hex,
+                               'queueUrl': player.queueUrl})
 
 
 def start_game(event, context):
