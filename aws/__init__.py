@@ -6,34 +6,20 @@ game classes
 import game
 from aws import dynamo, sqs
 from aws.dynamo import GameIdGenerator
-from game import CreatedGame, GameFactory
+from game import GameFactory
 from gameutil import GameReference
 
 
 class BasePlayer(game.Player):
-
     def __init__(self, name, token):
         super(BasePlayer, self).__init__()
         self._name = name
         self.token = token
+        self.queueUrl = None
 
     @property
     def name(self):
         return self._name
-
-class Player(BasePlayer):
-    def notify(self, event):
-        pass
-
-    def join(self, game):
-        game.register(self)
-
-
-class Host(BasePlayer):
-
-    def __init__(self, name, token):
-        super(Host, self).__init__(name, token)
-        self.queueUrl = None
 
     def notify(self, event):
         sqs.send_message(self.queueUrl, event)
@@ -42,13 +28,27 @@ class Host(BasePlayer):
         self.queueUrl = sqs.create_queue(game.id, self.token)
 
 
+class Player(BasePlayer):
+    def join(self, game):
+        super(Player, self).join(game)
+        game.register(self)
+
+
+class Host(BasePlayer):
+    """
+    The host of a game
+    """
+
+
 class GameWrapperFactory(object):
-    def new_game(self, host):
+    @staticmethod
+    def new_game(host):
         game = GameFactory(GameIdGenerator()).new_game(host)
         dynamo.create_game(game)
         return GameWrapper(game)
 
-    def load_game(self, game_id):
+    @staticmethod
+    def load_game(game_id):
         game = dynamo.load_game(game_id)
         return GameWrapper(game)
 
@@ -65,12 +65,10 @@ class GameWrapper(object):
     def save(self):
         dynamo.save_game(self.game.game)
 
-
     def __enter__(self):
         return self.game
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            pass # Don't save the game state if an exception occurred
+            pass  # Don't save the game state if an exception occurred
         self.save()
-
