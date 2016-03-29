@@ -4,7 +4,11 @@ Handlers for calling into the game backend via AWS Lambda
 import json
 import uuid
 
+import sys
+
 from aws import GameWrapperFactory, Host, Player
+from events import Prompt
+
 
 class AuthorizationError(StandardError):
     """
@@ -28,9 +32,10 @@ class ErrorHandler(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is AuthorizationError:
-            raise RuntimeError("Authorization Error: {}".format(str(exc_val)))
+            raise RuntimeError("Authorization Error: {}".format(exc_val))
         elif exc_type is not None:
-            raise RuntimeError("Server Error: {}".format(str(exc_val)))
+            print >>sys.stderr, exc_tb
+            raise RuntimeError("Server Error: {}".format(exc_val))
         else:
             pass
 
@@ -87,7 +92,7 @@ def start_game(event, context):
     - gameId: the id of the game to start
     - token: the token that identifies the caller as the host
 
-    Returns nothing if succesful, or an error if the game
+    Returns nothing if successful, or an error if the game
     could not be started for some reason.
     """
     with ErrorHandler():
@@ -98,11 +103,24 @@ def start_game(event, context):
             game.start()
 
 
-def submit_prompt():
+def submit_prompt(event, context):
     """
-    Called when a player submits a prompt for an existing game
+    Called when a player submits a prompt for an existing game.
+
+    The event is expected to contain the following parameter(s):
+    - gameId: the id of the game
+    - token: the token identifying this player
+    - prompt: the text of the prompt to be submitted
+
+    Returns nothing if successful, or an error if the prompt could
+    not be submitted.
     """
-    pass
+    with ErrorHandler():
+        with GameWrapperFactory.load_game(event["gameId"]) as game:
+            token_to_player = {player.token.hex: player for player in game.players}
+            if event["token"] not in token_to_player.keys():
+                raise AuthorizationError("submit_prompt", "player with token {}".format(event["token"]))
+            game.receive_prompt(Prompt(event["prompt"], token_to_player[event["token"]].name))
 
 
 def choose_prompt():
