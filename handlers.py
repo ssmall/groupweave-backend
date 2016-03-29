@@ -6,6 +6,17 @@ import uuid
 
 from aws import GameWrapperFactory, Host, Player
 
+class AuthorizationError(StandardError):
+    """
+    An error that signifies an unauthorized call to a handler.
+    That is, the caller does not have the proper permissions
+    to perform the game action specified by the handler.
+    """
+
+    def __init__(self, action, caller):
+        super(AuthorizationError, self).__init__("{} is not authorized to perform action '{}'".format(caller, action))
+
+
 class ErrorHandler(object):
     """
     Context manager for wrapping errors in a way
@@ -16,8 +27,12 @@ class ErrorHandler(object):
         pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            raise RuntimeError("Server Error: " + str(exc_val))
+        if exc_type is AuthorizationError:
+            raise RuntimeError("Authorization Error: {}".format(str(exc_val)))
+        elif exc_type is not None:
+            raise RuntimeError("Server Error: {}".format(str(exc_val)))
+        else:
+            pass
 
 def create_game(event, context):
     """
@@ -35,7 +50,7 @@ def create_game(event, context):
     """
     with ErrorHandler():
         host = Host(event["name"], uuid.uuid4())
-        with GameWrapperFactory().new_game(host) as game:
+        with GameWrapperFactory.new_game(host) as game:
             host.join(game)
             return json.dumps({'gameId': game.id,
                                'hostToken': game.host.token.hex,
@@ -56,7 +71,7 @@ def join_game(event, context):
                    in order to identify the requester as this player
     """
     with ErrorHandler():
-        with GameWrapperFactory().load_game(event["gameId"]) as game:
+        with GameWrapperFactory.load_game(event["gameId"]) as game:
             player = Player(event["name"], uuid.uuid4())
             player.join(game)
             return json.dumps({'playerToken': player.token.hex})
@@ -74,10 +89,10 @@ def start_game(event, context):
     could not be started for some reason.
     """
     with ErrorHandler():
-        with GameWrapperFactory().load_game(event["gameId"]) as game:
+        with GameWrapperFactory.load_game(event["gameId"]) as game:
             host = game.host
             if event["token"] != host.token.hex:
-                raise RuntimeError("Token mismatch; you are not authorized to perform this operation")
+                raise AuthorizationError("start_game", "player with token {}".format(event["token"]))
             game.start()
 
 
