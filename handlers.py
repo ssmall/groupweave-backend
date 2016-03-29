@@ -48,11 +48,22 @@ def join_game(event, context):
         return json.dumps({'playerToken': player.token.hex})
 
 
-def start_game():
+def start_game(event, context):
     """
-    Called when the host wants to start an existing game
+    Called when the host wants to start an existing game.
+
+    The event is expected to contain the following parameter(s):
+    - gameId: the id of the game to start
+    - token: the token that identifies the caller as the host
+
+    Returns nothing if succesful, or an error if the game
+    could not be started for some reason.
     """
-    pass
+    with GameWrapperFactory().load_game(event["gameId"]) as game:
+        host = game.host
+        if event["token"] != host.token.hex:
+            raise RuntimeError("Token mismatch; you are not authorized to perform this operation")
+        game.start()
 
 
 def submit_prompt():
