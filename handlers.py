@@ -7,7 +7,7 @@ import uuid
 import sys
 
 from aws import GameWrapperFactory, Host, Player
-from events import Prompt
+from events import Prompt, ChoosePrompt
 
 
 class AuthorizationError(StandardError):
@@ -140,4 +140,4 @@ def choose_prompt(event, context):
             host = game.host
             if event["token"] != host.token.hex:
                 raise AuthorizationError('choose_prompt', "player with token {}".format(event["token"]))
-            game.choose_prompt(event["prompt"])
+            game.choose_prompt(ChoosePrompt(event["prompt"]))
