@@ -123,8 +123,21 @@ def submit_prompt(event, context):
             game.receive_prompt(Prompt(event["prompt"], token_to_player[event["token"]].name))
 
 
-def choose_prompt():
+def choose_prompt(event, context):
     """
-    Called when the host chooses a prompt for an existing game
+    Called when the host chooses a prompt for an existing game.
+
+    The event is expected to contain the following parameter(s):
+    - gameId: the id of the game
+    - token: the token identifying this player as the host
+    - prompt: the host's chosen prompt
+
+    Returns nothing if successful, or an error if the prompt could
+    not be chosen
     """
-    pass
+    with ErrorHandler():
+        with GameWrapperFactory.load_game(event["gameId"]) as game:
+            host = game.host
+            if event["token"] != host.token.hex:
+                raise AuthorizationError('choose_prompt', "player with token {}".format(event["token"]))
+            game.choose_prompt(event["prompt"])
