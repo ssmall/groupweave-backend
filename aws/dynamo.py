@@ -6,11 +6,13 @@ import random
 import string
 
 import boto3
+import time
 
 dynamodb = boto3.resource('dynamodb')
 
 _GAME_STATE_TABLE = dynamodb.Table('groupweave_game_state')
 GAME_ID_LENGTH = 4
+
 
 class GameIdGenerator(object):
     """
@@ -28,14 +30,17 @@ class GameIdGenerator(object):
             game_id = self.random_word(GAME_ID_LENGTH)
         return game_id
 
-    def random_word(self, length):
+    @staticmethod
+    def random_word(length):
         return ''.join(random.choice(string.uppercase) for i in range(length))
+
 
 def create_game(game):
     _GAME_STATE_TABLE.put_item(
         Item={
             'game_id': game.id,
-            'game_state': pickle.dumps(game)
+            'game_state': pickle.dumps(game),
+            'last_modified': int(time.time())
         }
     )
 
@@ -54,8 +59,9 @@ def save_game(game):
         Key={
             'game_id': game.id
         },
-        UpdateExpression="SET game_state = :game_state",
+        UpdateExpression="SET game_state = :game_state, last_modified=:last_modified",
         ExpressionAttributeValues={
-            ':game_state': pickle.dumps(game)
+            ':game_state': pickle.dumps(game),
+            ':last_modified': int(time.time())
         }
     )
