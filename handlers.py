@@ -6,7 +6,7 @@ import uuid
 
 import sys
 
-from aws import GameWrapperFactory, Host, Player
+from aws import GameWrapperFactory, Host, Player, dynamo, sqs
 from events import Prompt, ChoosePrompt
 
 
@@ -34,10 +34,11 @@ class ErrorHandler(object):
         if exc_type is AuthorizationError:
             raise RuntimeError("Authorization Error: {}".format(exc_val))
         elif exc_type is not None:
-            print >>sys.stderr, exc_tb
+            print >> sys.stderr, exc_tb
             raise RuntimeError("Server Error: {}".format(exc_val))
         else:
             pass
+
 
 def create_game(event, context):
     """
@@ -141,3 +142,21 @@ def choose_prompt(event, context):
             if event["token"] != host.token.hex:
                 raise AuthorizationError('choose_prompt', "player with token {}".format(event["token"]))
             game.choose_prompt(ChoosePrompt(event["prompt"]))
+
+
+def cleanup(event, context):
+    """
+    Called to clean up old game state.
+
+    """
+    removed_games = []
+    removed_queues = []
+    for game in dynamo.get_old_or_finished_games():
+        removed_queues.append(sqs.delete_queue(game.host.queueUrl))
+        for player in game.players:
+            removed_queues.append(sqs.delete_queue(player.queueUrl))
+        removed_games.append(dynamo.delete_game(game))
+    return json.dumps({
+        'removed_games': removed_games,
+        'removed_queues': removed_queues
+    })

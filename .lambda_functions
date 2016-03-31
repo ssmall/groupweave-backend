@@ -3,3 +3,4 @@ startGroupweaveGame
 createGroupweaveGame
 joinGroupweaveGame
 submitGroupweavePrompt
+cleanupGroupweaveGames

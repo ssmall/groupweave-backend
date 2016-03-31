@@ -8,10 +8,13 @@ import string
 import boto3
 import time
 
+from game import CompleteGame
+
 dynamodb = boto3.resource('dynamodb')
 
 _GAME_STATE_TABLE = dynamodb.Table('groupweave_game_state')
 GAME_ID_LENGTH = 4
+GAME_AGE_THRESHOLD_SECONDS = 5 * 60 * 60
 
 
 class GameIdGenerator(object):
@@ -65,3 +68,24 @@ def save_game(game):
             ':last_modified': int(time.time())
         }
     )
+
+
+def delete_game(game):
+    _GAME_STATE_TABLE.delete_item(
+        Key={
+            'game_id': game.id
+        }
+    )
+    return game.id
+
+
+def get_old_or_finished_games():
+    response = _GAME_STATE_TABLE.scan(
+        ProjectionExpression="game_id,game_state,last_modified"
+    )
+    now = int(time.time())
+    all_games = [(pickle.loads(item["game_state"]), item["last_modified"]) for item in response["Items"]]
+    result = filter(lambda (game, last_modified): (now - last_modified) > GAME_AGE_THRESHOLD_SECONDS
+                                                or isinstance(game, CompleteGame),
+                    all_games)
+    return [item[0] for item in result]

@@ -27,3 +27,13 @@ def send_message(queue_url, event):
         QueueUrl=queue_url,
         MessageBody=eventJson
     )
+
+
+def delete_queue(queue_url):
+    """
+    Delete the queue with the given URL.
+
+    Assuming the request succeeds, returns the queue url
+    """
+    sqs.delete_queue(QueueUrl=queue_url)
+    return queue_url
