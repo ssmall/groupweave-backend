@@ -8,19 +8,65 @@ from events import *
 TOTAL_ROUNDS = 10
 
 
+class NotificationManager(object):
+    """
+    Handles PubSub style of notification for events
+    """
+
+    def __init__(self):
+        super(NotificationManager, self).__init__()
+        self._registry = {}
+
+    def subscribe(self, player, *event_types):
+        """
+        Subscribe the given player to the given type of event
+        :param player: the Player to subscribe
+        :param event_types: one or more events.Event types to which this player subscribes
+        """
+        for event_type in event_types:
+            if event_type in self._registry.keys():
+                self._registry[event_type].append(player)
+            else:
+                self._registry[event_type] = [player]
+
+    def publish(self, event):
+        """
+        Publish an event, notify all players who are subscribed to that event type
+        :param event: the events.Event instance to publish
+        """
+        for player in self._registry[type(event)]:
+            player.notify(event)
+
+
 class GameFactory(object):
     """
     Factory for creating a new game
     """
 
-    def __init__(self, id_generator):
+    def __init__(self, id_generator, notification_manager):
         self.id_generator = id_generator
+        self.notification_manager = notification_manager
 
     def new_game(self, host):
         """
         :return: a new CreatedGame
         """
-        return CreatedGame(host, self.id_generator.new_id(), [])
+        self.notification_manager.subscribe(host, PlayerJoined, NewPrompts, Done)
+        return CreatedGame(host, self.id_generator.new_id(), self.notification_manager)
+
+
+def copy_value(override_value, copy_from, attr_name):
+    """
+    Copy the value of the named attribute from 'copy_from' iff 'override_value' is None
+    """
+    if override_value is not None:
+        return override_value
+    if copy_from is None:
+        raise ValueError("Could not copy attribute {} from {}".format(attr_name, copy_from))
+    val = getattr(copy_from, attr_name, None)
+    if val is None:
+        raise ValueError("Could not get a value for {}".format(attr_name))
+    return val
 
 
 class Game(object):
@@ -38,13 +84,16 @@ class Game(object):
     calling the method.
     """
 
-    def __init__(self, host, game_id, players, story="", current_round=1, spectators=[]):
-        self._current_round = current_round
-        self._players = players
-        self._host = host
-        self._id = game_id
-        self._story = story
-        self._spectators = spectators
+    def __init__(self, host=None, game_id=None, players=None, story=None,
+                 current_round=None, spectators=None, notification_manager=None,
+                 copy_from=None):
+        self._current_round = copy_value(current_round, copy_from, "_current_round")
+        self._players = copy_value(players, copy_from, "_players")
+        self._host = copy_value(host, copy_from, "_host")
+        self._id = copy_value(game_id, copy_from, "_id")
+        self._story = copy_value(story, copy_from, "_story")
+        self._spectators = copy_value(spectators, copy_from, "_spectators")
+        self._notification_manager = copy_value(notification_manager, copy_from, "_notification_manager")
 
     @property
     def host(self):
@@ -70,19 +119,16 @@ class Game(object):
     def round_number(self):
         return self._current_round
 
-    def notify_players(self, notification):
-        for player in self.players:
-            player.notify(notification)
-
-    def notify_spectators(self, notification):
-        for spectator in self._spectators:
-            spectator.notify(notification)
-
 
 class CreatedGame(Game):
     """
     A game in the CREATED state
     """
+
+    def __init__(self, host, game_id, notfication_manager):
+        super(CreatedGame, self).__init__(host=host, game_id=game_id, players=[],
+                                          story="", current_round=1, spectators=[],
+                                          notification_manager=notfication_manager)
 
     def register_player(self, player_to_add):
         """
@@ -94,10 +140,8 @@ class CreatedGame(Game):
             raise RuntimeError("{} has already joined the game!".format(player_to_add))
         self._players.append(player_to_add)
         event = PlayerJoined(player_to_add.name)
-        for playerToNotify in self.players + (self.host,):
-            if playerToNotify is player_to_add:
-                continue
-            playerToNotify.notify(event)
+        self._notification_manager.publish(event)
+        self._notification_manager.subscribe(player_to_add, PlayerJoined, GameStarted, StoryUpdate, Done)
         return self
 
     def register_spectator(self, spectator_to_add):
@@ -109,16 +153,15 @@ class CreatedGame(Game):
         if spectator_to_add in self.spectators + self.players:
             raise RuntimeError("{} has already joined the game!".format(spectator_to_add))
         self._spectators.append(spectator_to_add)
+        self._notification_manager.subscribe(spectator_to_add, PlayerJoined, GameStarted, NewPrompts, StoryUpdate, Done)
         return self
 
     def start(self):
         """
         :return: a WaitForSubmissionsGame
         """
-        game_started = GameStarted()
-        self.notify_players(game_started)
-        self.notify_spectators(game_started)
-        return WaitForSubmissionsGame(self.host, self.id, self.players, "", 1, self.spectators)
+        self._notification_manager.publish(GameStarted())
+        return WaitForSubmissionsGame(copy_from=self)
 
 
 class WaitForSubmissionsGame(Game):
@@ -126,8 +169,8 @@ class WaitForSubmissionsGame(Game):
     A game in the WAIT_FOR_SUBMISSIONS state
     """
 
-    def __init__(self, host, game_id, players, story, current_round, spectators):
-        super(WaitForSubmissionsGame, self).__init__(host, game_id, players, story, current_round, spectators)
+    def __init__(self, *args, **kwargs):
+        super(WaitForSubmissionsGame, self).__init__(*args, **kwargs)
         self._prompts = {}
 
     def receive_prompt(self, prompt):
@@ -141,10 +184,8 @@ class WaitForSubmissionsGame(Game):
         self._prompts[player_name] = prompt["prompt"]
 
         if len(self.prompts) == len(self.players):
-            prompts_event = NewPrompts(prompts=self.prompts.values())
-            self.host.notify(prompts_event)
-            self.notify_spectators(prompts_event)
-            return ChoosingGame(self.host, self.id, self.players, self.story, self.round_number)
+            self._notification_manager.publish(NewPrompts(prompts=self.prompts.values()))
+            return ChoosingGame(copy_from=self)
         return self
 
     @property
@@ -161,19 +202,12 @@ class ChoosingGame(Game):
         updated_story = "{} {}".format(self.story, choice['choice'])
 
         if self.round_number == TOTAL_ROUNDS:
-            doneEvent = Done(winner="Everybody!", story=updated_story)
-            self.notify_players(doneEvent)
-            self.notify_spectators(doneEvent)
-            self.host.notify(doneEvent)
-            return CompleteGame(self.host, self.id, self.players, updated_story, TOTAL_ROUNDS)
+            self._notification_manager.publish(Done(winner="Everybody!", story=updated_story))
+            return CompleteGame(copy_from=self, story=updated_story, current_round=TOTAL_ROUNDS)
         else:
             is_final_round = self.round_number == (TOTAL_ROUNDS - 1)
-            notification = StoryUpdate(updated_story, is_final_round=is_final_round)
-            self.notify_players(notification)
-            self.notify_spectators(notification)
-            return WaitForSubmissionsGame(self.host, self.id,
-                                          self.players, updated_story,
-                                          self.round_number + 1, self.spectators)
+            self._notification_manager.publish(StoryUpdate(updated_story, is_final_round=is_final_round))
+            return WaitForSubmissionsGame(copy_from=self, story=updated_story, current_round=self.round_number + 1)
 
 
 class CompleteGame(Game):

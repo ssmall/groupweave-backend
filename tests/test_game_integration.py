@@ -8,7 +8,7 @@ from unittest import TestCase
 from mock import Mock
 
 from events import Prompt, ChoosePrompt
-from game import GameFactory, Player, TOTAL_ROUNDS, CompleteGame
+from game import GameFactory, Player, TOTAL_ROUNDS, CompleteGame, NotificationManager
 
 
 class TestGameIntegration(TestCase):
@@ -19,7 +19,7 @@ class TestGameIntegration(TestCase):
         player1.name = "Jeb"
         player2 = Mock(spec=Player)
         player2.name = "Zedd"
-        game = GameFactory(Mock(new_id=Mock(return_value="0000"))).new_game(host)
+        game = GameFactory(Mock(new_id=Mock(return_value="0000")), Mock(spec=NotificationManager)).new_game(host)
 
         game.register_player(player1)
         game.register_player(player2)
