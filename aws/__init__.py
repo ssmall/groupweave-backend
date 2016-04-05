@@ -39,6 +39,18 @@ class Host(BasePlayer):
     The host of a game
     """
 
+class Spectator(BasePlayer):
+    """
+    A spectator of a game
+    """
+
+    def __init__(self, token):
+        super(Spectator, self).__init__("Spectator", token)
+
+    def join(self, game):
+        super(Spectator, self).join(game)
+        game.register_spectator(self)
+
 
 class GameWrapperFactory(object):
     @staticmethod

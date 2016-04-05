@@ -6,7 +6,7 @@ import uuid
 
 import sys
 
-from aws import GameWrapperFactory, Host, Player, dynamo, sqs
+from aws import GameWrapperFactory, Host, Player, dynamo, sqs, Spectator
 from events import Prompt, ChoosePrompt
 
 
@@ -83,6 +83,23 @@ def join_game(event, context):
             player.join(game)
             return json.dumps({'playerToken': player.token.hex,
                                'queueUrl': player.queueUrl})
+
+
+def spectate_game(event, context):
+    """
+    Called when somebody wants to spectate an existing game.
+
+    The event is expected to contain the following parameter(s):
+    - gamedId: the four-letter ID of the game to spectate
+
+    Returns the following:
+    - queueUrl: the URL of the SQS queue for spectator notifications
+    """
+    with ErrorHandler():
+        with GameWrapperFactory.load_game(event["gameId"]) as game:
+            spectator = Spectator(uuid.uuid4())
+            spectator.join(game)
+            return json.dumps({'queueUrl': spectator.queueUrl})
 
 
 def start_game(event, context):
