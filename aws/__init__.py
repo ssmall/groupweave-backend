@@ -31,7 +31,7 @@ class BasePlayer(game.Player):
 class Player(BasePlayer):
     def join(self, game):
         super(Player, self).join(game)
-        game.register(self)
+        game.register_player(self)
 
 
 class Host(BasePlayer):

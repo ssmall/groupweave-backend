@@ -21,8 +21,8 @@ class TestGameIntegration(TestCase):
         player2.name = "Zedd"
         game = GameFactory(Mock(new_id=Mock(return_value="0000"))).new_game(host)
 
-        game.register(player1)
-        game.register(player2)
+        game.register_player(player1)
+        game.register_player(player2)
 
         game = game.start()
 

@@ -63,7 +63,7 @@ class Player(game.Player):
         self._protocol.sendLine(event.toJson())
 
     def join(self, game):
-        game.register(self)
+        game.register_player(self)
 
 
 class Host(Player):
