@@ -43,7 +43,7 @@ class GameFactory(object):
     Factory for creating a new game
     """
 
-    def __init__(self, id_generator, notification_manager):
+    def __init__(self, id_generator, notification_manager=NotificationManager()):
         self.id_generator = id_generator
         self.notification_manager = notification_manager
 
